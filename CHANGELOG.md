@@ -8,10 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2026-02-25
 
 ### Added
-- **VS Code Extension**: Trace Explorer with secure token storage (VS Code SecretStorage)
-  - Commands: Open Trace Explorer, Set/Clear Bearer Token, Ping Oracle
-  - Webview UI with strict CSP and message validation
-  - Configurable Oracle URL and trace limits
 - **Compliance Oracle (Rust/Axum)**:
   - OIDC authentication with RS256 JWT validation
   - AES-256-GCM encryption at rest for trace payloads

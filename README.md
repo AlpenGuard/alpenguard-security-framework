@@ -11,7 +11,7 @@
 [![Anchor](https://img.shields.io/badge/anchor-0.30-blueviolet)](https://www.anchor-lang.com/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.5-blue)](https://www.typescriptlang.org/)
 
-[Documentation](#documentation) • [Quick Start](#quick-start) • [Architecture](#architecture) • [Security](#security-model) • [VS Code Extension](#vs-code-extension)
+[Documentation](#documentation) • [Quick Start](#quick-start) • [Architecture](#architecture) • [Security](#security-model)
 
 </div>
 
@@ -25,7 +25,7 @@ AlpenGuard is a **zero-trust security framework** for autonomous AI agents opera
 - **⛓️ On-Chain Anchoring**: Immutable trace events on Solana via Anchor program
 - **🛡️ Red-Teaming Engine**: Behavioral analysis and adversarial testing (roadmap)
 - **💰 Micropayment Gateway**: Token-2022 integration with x402 protocol (roadmap)
-- **📊 Trace Explorer**: Web console + VS Code extension for compliance auditing
+- **📊 Trace Explorer**: Web console for compliance auditing
 
 ### Why AlpenGuard?
 
@@ -44,7 +44,7 @@ AlpenGuard bridges the gap between **agent autonomy** and **regulatory complianc
 ### Prerequisites
 
 - **Rust** 1.75+ (for Oracle)
-- **Node.js** 18+ (for Console/Extension)
+- **Node.js** 18+ (for Console)
 - **Solana CLI** + **Anchor** 0.30+ (for on-chain program)
 
 ### 1️⃣ Clone the Repository
@@ -116,12 +116,12 @@ Update `declare_id!` in `lib.rs` with your program ID.
 │                     AlpenGuard Stack                        │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │   Console    │  │  VS Code Ext │  │  Agent SDK   │     │
-│  │  (React UI)  │  │  (TypeScript)│  │ (TypeScript) │     │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘     │
-│         │                 │                 │              │
-│         └─────────────────┼─────────────────┘              │
+│  ┌──────────────┐                      ┌──────────────┐     │
+│  │   Console    │                      │  Agent SDK   │     │
+│  │  (React UI)  │                      │ (TypeScript) │     │
+│  └──────┬───────┘                      └──────┬───────┘     │
+│         │                                     │              │
+│         └─────────────────────────────────────┘              │
 │                           │                                │
 │                  ┌────────▼────────┐                       │
 │                  │ Compliance      │                       │
@@ -152,7 +152,6 @@ Update `declare_id!` in `lib.rs` with your program ID.
 |-----------|------------|----------|
 | **Compliance Oracle** | Rust (Axum) | Trace ingestion, encryption, storage |
 | **Console** | React + Vite | Web-based trace explorer |
-| **VS Code Extension** | TypeScript | IDE-native trace explorer |
 | **Solana Program** | Anchor (Rust) | On-chain trace anchoring |
 | **Storage Backends** | FS / GCS / S3 | Encrypted trace persistence |
 
@@ -194,30 +193,6 @@ Update `declare_id!` in `lib.rs` with your program ID.
 
 ---
 
-## 💻 VS Code Extension
-
-Install the AlpenGuard extension from the VS Code Marketplace:
-
-```
-code --install-extension AlpenGuard.alpenguard
-```
-
-### Features
-
-- **Trace Explorer**: List/get traces directly in VS Code
-- **Secure Token Storage**: Uses VS Code SecretStorage (OS keychain)
-- **Configurable Oracle URL**: Workspace-scoped settings
-- **Strict CSP**: Nonce-based script execution, no inline scripts
-
-### Commands
-
-- `AlpenGuard: Open Trace Explorer`
-- `AlpenGuard: Set Bearer Token`
-- `AlpenGuard: Clear Bearer Token`
-- `AlpenGuard: Ping Oracle`
-
----
-
 ## 📚 Documentation
 
 | Document | Description |
@@ -239,7 +214,7 @@ code --install-extension AlpenGuard.alpenguard
 - On-chain trace anchoring (Solana/Anchor)
 - Compliance Oracle with OIDC auth
 - AES-256-GCM encryption at rest
-- Web console + VS Code extension
+- Web console
 - Multi-backend storage (FS/GCS/S3)
 
 ### 🚧 Phase 2 (In Progress)
