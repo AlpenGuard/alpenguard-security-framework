@@ -1,0 +1,299 @@
+openapi: 3.0.3
+info:
+  title: AlpenGuard Compliance Oracle API
+  description: |
+    Security & compliance middleware for autonomous AI agents on Solana.
+    
+    The Oracle provides:
+    - OIDC-authenticated trace ingestion
+    - AES-256-GCM encryption at rest (with optional KMS envelope encryption)
+    - Multi-tenant isolation
+    - Multi-backend storage (FS/GCS/S3)
+    - x402 micropayment integration (optional)
+  version: 0.3.0
+  contact:
+    name: AlpenGuard Security Team
+    url: https://github.com/AlpenGuard/alpenguard-security-framework
+  license:
+    name: MIT
+    url: https://github.com/AlpenGuard/alpenguard-security-framework/blob/main/LICENSE
+
+servers:
+  - url: http://localhost:8787
+    description: Local development
+  - url: https://oracle.alpenguard.io
+    description: Production
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Traces
+    description: Trace ingestion and retrieval
+
+paths:
+  /healthz:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Returns Oracle health status
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Oracle is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+
+  /v1/traces:ingest:
+    post:
+      tags:
+        - Traces
+      summary: Ingest a trace
+      description: |
+        Ingest an encrypted trace event. Requires OIDC authentication.
+        
+        **Multi-tenancy**: Request `tenant_id` must match OIDC token `tenant_id` claim.
+        
+        **Encryption**: Payload is encrypted with AES-256-GCM (optionally using KMS envelope encryption).
+      operationId: ingestTrace
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TraceIngestRequest'
+      responses:
+        '200':
+          description: Trace ingested successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+        '400':
+          description: Invalid request (missing fields, invalid payload hash)
+        '401':
+          description: Unauthorized (missing or invalid OIDC token)
+        '403':
+          description: Forbidden (tenant_id mismatch or insufficient scope)
+        '413':
+          description: Payload too large
+        '429':
+          description: Rate limit exceeded
+        '500':
+          description: Internal server error
+
+  /v1/traces:list:
+    get:
+      tags:
+        - Traces
+      summary: List traces
+      description: |
+        List all traces for the authorized tenant.
+        
+        **Multi-tenancy**: Only returns traces for the tenant specified in OIDC token.
+        
+        **Limit**: Returns up to 500 most recent traces.
+      operationId: listTraces
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Trace list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TraceSummary'
+        '401':
+          description: Unauthorized (missing or invalid OIDC token)
+        '403':
+          description: Forbidden (insufficient scope)
+        '429':
+          description: Rate limit exceeded
+        '500':
+          description: Internal server error
+
+  /v1/traces:get:
+    post:
+      tags:
+        - Traces
+      summary: Get a specific trace
+      description: |
+        Retrieve and decrypt a specific trace by ID.
+        
+        **Multi-tenancy**: Request `tenant_id` must match OIDC token `tenant_id` claim.
+        
+        **Decryption**: Payload is decrypted using AES-256-GCM (or KMS envelope decryption).
+      operationId: getTrace
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TraceGetRequest'
+      responses:
+        '200':
+          description: Trace retrieved and decrypted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TraceGetResponse'
+        '400':
+          description: Invalid request (missing fields)
+        '401':
+          description: Unauthorized (missing or invalid OIDC token)
+        '403':
+          description: Forbidden (tenant_id mismatch or insufficient scope)
+        '404':
+          description: Trace not found
+        '429':
+          description: Rate limit exceeded
+        '500':
+          description: Internal server error (decryption failure)
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        OIDC access token (RS256 JWT).
+        
+        **Required claims:**
+        - `sub`: Subject (user/agent ID)
+        - `iss`: Issuer (must match ALPENGUARD_OIDC_ISSUER)
+        - `aud`: Audience (must match ALPENGUARD_OIDC_AUDIENCE)
+        - `exp`: Expiration timestamp
+        - `scope`: Space-separated scopes (must include `traces:ingest` or `traces:read`)
+        - `tenant_id`: Tenant identifier (for multi-tenancy)
+
+  schemas:
+    TraceIngestRequest:
+      type: object
+      required:
+        - tenant_id
+        - trace_id
+        - span_id
+        - ts_unix_ms
+        - agent_id
+        - event_type
+        - payload_b64
+        - payload_sha256_b64
+      properties:
+        tenant_id:
+          type: string
+          description: Tenant identifier (must match OIDC token claim)
+          example: "acme-corp"
+        trace_id:
+          type: string
+          description: Trace identifier (UUID or similar)
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        span_id:
+          type: string
+          description: Span identifier within trace
+          example: "span-001"
+        ts_unix_ms:
+          type: integer
+          format: int64
+          description: Timestamp in Unix milliseconds
+          example: 1709078400000
+        agent_id:
+          type: string
+          description: Agent identifier
+          example: "agent-alpha"
+        event_type:
+          type: string
+          description: Event type (e.g., "decision", "action", "error")
+          example: "decision"
+        payload_b64:
+          type: string
+          format: byte
+          description: Base64-encoded payload (will be encrypted at rest)
+          example: "eyJkZWNpc2lvbiI6ImFwcHJvdmUifQ=="
+        payload_sha256_b64:
+          type: string
+          format: byte
+          description: Base64-encoded SHA-256 hash of payload (for integrity verification)
+          example: "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="
+
+    TraceSummary:
+      type: object
+      properties:
+        tenant_id:
+          type: string
+          description: Tenant identifier
+          example: "acme-corp"
+        trace_id:
+          type: string
+          description: Trace identifier
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        span_id:
+          type: string
+          description: Span identifier
+          example: "span-001"
+        ts_unix_ms:
+          type: integer
+          format: int64
+          description: Timestamp in Unix milliseconds
+          example: 1709078400000
+        agent_id:
+          type: string
+          description: Agent identifier
+          example: "agent-alpha"
+        event_type:
+          type: string
+          description: Event type
+          example: "decision"
+        payload_sha256_b64:
+          type: string
+          format: byte
+          description: Base64-encoded SHA-256 hash of payload
+          example: "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="
+
+    TraceGetRequest:
+      type: object
+      required:
+        - tenant_id
+        - trace_id
+        - span_id
+      properties:
+        tenant_id:
+          type: string
+          description: Tenant identifier (must match OIDC token claim)
+          example: "acme-corp"
+        trace_id:
+          type: string
+          description: Trace identifier
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        span_id:
+          type: string
+          description: Span identifier
+          example: "span-001"
+
+    TraceGetResponse:
+      type: object
+      properties:
+        payload_b64:
+          type: string
+          format: byte
+          description: Base64-encoded decrypted payload
+          example: "eyJkZWNpc2lvbiI6ImFwcHJvdmUifQ=="

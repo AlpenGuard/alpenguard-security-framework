@@ -5,6 +5,44 @@ All notable changes to AlpenGuard will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-02-25
+
+### Added
+- **Testing & Quality Assurance**:
+  - Unit tests for KMS module (envelope encryption, DEK caching, rotation)
+  - Unit tests for micropayments program (space calculations, account validation)
+  - Integration test infrastructure for Oracle endpoints
+  - Test placeholders for multi-tenancy, authentication, rate limiting
+- **API Documentation**:
+  - OpenAPI 3.0 specification (`services/oracle/openapi.yaml`)
+  - Complete API reference for all Oracle endpoints
+  - Request/response schemas with examples
+  - Authentication and security scheme documentation
+- **Production Deployment**:
+  - Comprehensive production deployment guide (`PRODUCTION_DEPLOYMENT.md`)
+  - GCP infrastructure setup (Cloud Run, KMS, Secret Manager)
+  - Monitoring and observability setup (Cloud Monitoring, Logging, Tracing)
+  - Security hardening procedures (network security, secret rotation, audit logging)
+  - Backup and disaster recovery procedures
+  - Operational runbook with common operations and incident response
+  - Performance optimization guidelines
+  - Cost optimization strategies
+- **Branch Protection**:
+  - Branch protection setup guide (`BRANCH_PROTECTION.md`)
+  - Updated `CONTRIBUTING.md` with detailed PR workflow
+  - Conventional commit format guidelines
+  - Code review and merging procedures
+
+### Changed
+- Test infrastructure now supports both unit and integration tests
+- Documentation structure improved with dedicated deployment guide
+
+### Documentation
+- Added OpenAPI specification for Oracle API
+- Added production deployment guide with monitoring setup
+- Added branch protection setup instructions
+- Enhanced contributing guidelines with PR workflow
+
 ## [0.3.0] - 2026-02-25
 
 ### Added
