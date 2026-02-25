@@ -1,0 +1,17 @@
+# Our security address
+Contact: https://github.com/AlpenGuard/alpenguard-security-framework/security/advisories/new
+
+# Our security policy
+Policy: https://github.com/AlpenGuard/alpenguard-security-framework/blob/main/SECURITY.md
+
+# Our PGP key (optional - add if available)
+# Encryption: https://keys.openpgp.org/...
+
+# Preferred language
+Preferred-Languages: en
+
+# Canonical URL
+Canonical: https://alpenguard.io/.well-known/security.txt
+
+# Expiration date (1 year from now)
+Expires: 2027-02-25T00:00:00.000Z

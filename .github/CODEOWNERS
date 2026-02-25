@@ -1,0 +1,30 @@
+# CODEOWNERS - Automatically request reviews from code owners
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo
+# These owners will be requested for review when someone opens a pull request
+* @AlpenGuard/maintainers
+
+# Oracle (Rust backend)
+/services/oracle/ @AlpenGuard/rust-team @AlpenGuard/security-team
+
+# Solana programs (Anchor)
+/programs/ @AlpenGuard/solana-team @AlpenGuard/security-team
+
+# Console (React frontend)
+/apps/console/ @AlpenGuard/frontend-team
+
+# CI/CD and infrastructure
+/.github/ @AlpenGuard/devops-team
+/PRODUCTION_DEPLOYMENT.md @AlpenGuard/devops-team
+/DEPLOY_*.md @AlpenGuard/devops-team
+
+# Security-sensitive files
+/SECURITY.md @AlpenGuard/security-team
+/.github/workflows/ @AlpenGuard/security-team @AlpenGuard/devops-team
+/.env.example @AlpenGuard/security-team
+
+# Documentation
+/README.md @AlpenGuard/maintainers
+/CONTRIBUTING.md @AlpenGuard/maintainers
+/CHANGELOG.md @AlpenGuard/maintainers
