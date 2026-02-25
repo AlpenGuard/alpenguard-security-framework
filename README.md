@@ -1,4 +1,5 @@
-# AlpenGuard
+# AlpenGuard :shield:
+![Adobe Express - file (1)](https://github.com/user-attachments/assets/41a6fcc0-674c-41fe-8153-0ce529c72f6c)
 
 Security and red-teaming middleware for autonomous AI agents on Solana.
 
@@ -8,7 +9,7 @@ This repository is a monorepo containing:
 - `services/oracle`: Compliance Oracle HTTP API (Axum)
 - `programs/alpenguard`: Solana program (Anchor)
 
-## Status
+## Status :hammer_and_wrench:
 
 This is an **early / Phase 1** foundation:
 
@@ -16,7 +17,7 @@ This is an **early / Phase 1** foundation:
 - Off-chain: encrypted trace payload storage in the Oracle (AES-256-GCM).
 - Console: Trace Explorer can ping/list/get traces from the Oracle.
 
-## Quick start (dev)
+## Quick start (dev) 🚀
 
 ### 1) Configure environment
 
@@ -29,7 +30,7 @@ If you are running locally without OIDC, the Oracle requires explicit acknowledg
 
 - `ALPENGUARD_ALLOW_INSECURE=1`
 
-### 2) Run the Oracle
+### 2) Run the Oracle 🏃
 
 From `services/oracle`:
 
@@ -39,7 +40,7 @@ The Oracle listens on:
 
 - `0.0.0.0:8787` by default
 
-### 3) Run the Console
+### 3) Run the Console 🏃
 
 From `apps/console`:
 
@@ -47,7 +48,7 @@ From `apps/console`:
 
 Open the console and set the Oracle URL in the sidebar.
 
-## Security model (high level)
+## Security model (high level) 🔒
 
 - Encryption at rest: trace payloads are stored encrypted by the Oracle using AES-256-GCM.
 - Encryption in transit: terminate TLS in your reverse proxy / hosting layer.
@@ -55,12 +56,12 @@ Open the console and set the Oracle URL in the sidebar.
   - `traces:ingest`
   - `traces:read`
 
-## Repository hygiene
+## Repository hygiene 🧼
 
 - Never commit secrets. `.gitignore` excludes `.env*`, key material, and common local data dirs.
 - Use your cloud provider secret manager for all credentials.
 
-## Docs
+## Docs 📰
 
 - `ARCHITECTURE.md`: system overview
 - `ROADMAP.md`: implementation roadmap
