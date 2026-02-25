@@ -1,0 +1,12 @@
+{
+  "name": "alpenguard",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "console:dev": "npm --workspace @alpenguard/console run dev",
+    "console:build": "npm --workspace @alpenguard/console run build"
+  }
+}

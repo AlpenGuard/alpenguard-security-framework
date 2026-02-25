@@ -1,0 +1,50 @@
+# AlpenGuard Security Framework - AIUC-1 Compliance
+
+# ALWAYS FLAGS - Required for all code
+ALWAYS:
+  - Implement AIUC-1 Data Protection: All agent data must be encrypted at rest and in transit
+  - Follow AIUC-1 Security Standards: Zero-trust architecture with MFA for all admin access
+  - Ensure AIUC-1 Reliability: 99.99% uptime with automated failover mechanisms
+  - Use Token-2022 extensions (CpiGuard, ImmutableOwner) for all token operations
+  - Implement trace-mapping for EU AI Act compliance (August 2026 deadline)
+  - Use gasless USDC transactions for all micropayments
+  - Validate all agent interactions through Compliance Oracle
+  - Log all red-teaming attempts with behavioral analysis
+
+# NEVER FLAGS - Security red lines
+NEVER:
+  - Hardcode private keys, seeds, or any secrets in code
+  - Use unsafe Rust functions (unsafe blocks) without explicit security review
+  - Skip input validation for any agent requests
+  - Allow direct database access without authentication
+  - Use eval() or dynamic code execution without sandboxing
+  - Store sensitive data in plaintext
+  - Skip rate limiting on API endpoints
+  - Allow unsigned transactions in production
+  - Use deprecated Solana program features
+  - Skip audit trails for compliance reporting
+
+# ARCHITECTURAL CONSTRAINTS
+ANCHOR:
+  - Use Anchor 0.3x with strict type safety
+  - Implement proper error handling with custom error types
+  - Use program-derived addresses (PDAs) for all state accounts
+  - Validate all instruction data before processing
+
+YELLOWSTONE:
+  - Use Yellowstone gRPC for slot-perfect streaming
+  - Implement proper connection pooling and retry logic
+  - Handle gRPC stream disconnections gracefully
+  - Cache frequently accessed account data
+
+RED-TEAMING:
+  - Isolate adversarial agents in separate sandboxes
+  - Implement rate limiting for chaos engineering tests
+  - Log all behavioral patterns for analysis
+  - Use deterministic randomness for reproducible tests
+
+MICROPAYMENTS:
+  - Implement x402 HTTP 402 protocol natively
+  - Support stateless handshakes with zero human intervention
+  - Use gasless USDC with proper fee delegation
+  - Implement proper payment verification and refund logic
