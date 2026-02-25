@@ -104,6 +104,8 @@ struct Claims {
     iat: Option<usize>,
     scope: Option<String>,
     permissions: Option<Vec<String>>,
+    #[serde(default)]
+    tenant_id: Option<String>,
 }
 
 fn aud_matches_config(aud: &serde_json::Value, expected: &str) -> bool {
@@ -139,6 +141,7 @@ static JWKS_CACHE: Lazy<RwLock<Option<JwksCache>>> = Lazy::new(|| RwLock::new(No
 
 #[derive(Debug, Deserialize)]
 struct TraceIngestRequest {
+    tenant_id: String,
     trace_id: String,
     span_id: String,
     ts_unix_ms: i64,
@@ -155,6 +158,7 @@ struct TraceIngestResponse {
 
 #[derive(Debug, Serialize)]
 struct TraceSummary {
+    tenant_id: String,
     trace_id: String,
     span_id: String,
     ts_unix_ms: i64,
@@ -170,6 +174,7 @@ struct TraceListResponse {
 
 #[derive(Debug, Deserialize)]
 struct TraceGetRequest {
+    tenant_id: String,
     trace_id: String,
     span_id: String,
 }
@@ -407,11 +412,13 @@ async fn ingest_trace(
     Json(req): Json<TraceIngestRequest>,
 ) -> (StatusCode, Json<TraceIngestResponse>) {
     let mut subject_sub: Option<String> = None;
+    let mut authorized_tenant: Option<String> = None;
     if state.auth.enabled {
         match authorize_request(&state, &headers, Action::TracesIngest).await {
             Ok(claims) => {
                 audit_event(Action::TracesIngest, "allow", Some(&claims.sub), None);
                 subject_sub = Some(claims.sub);
+                authorized_tenant = claims.tenant_id;
             }
             Err(code) => {
                 audit_event(Action::TracesIngest, "deny", None, Some(code.as_u16()));
@@ -430,8 +437,17 @@ async fn ingest_trace(
     // - Persist encrypted at rest (planned: KMS envelope)
     // - Emit to trace pipeline (planned: OpenTelemetry collector)
 
-    if req.trace_id.is_empty() || req.span_id.is_empty() || req.agent_id.is_empty() || req.event_type.is_empty() {
+    if req.tenant_id.is_empty() || req.trace_id.is_empty() || req.span_id.is_empty() || req.agent_id.is_empty() || req.event_type.is_empty() {
         return (StatusCode::BAD_REQUEST, Json(TraceIngestResponse { accepted: false }));
+    }
+
+    if state.auth.enabled {
+        if let Some(ref auth_tenant) = authorized_tenant {
+            if auth_tenant != &req.tenant_id {
+                audit_event(Action::TracesIngest, "tenant_mismatch", None, Some(StatusCode::FORBIDDEN.as_u16()));
+                return (StatusCode::FORBIDDEN, Json(TraceIngestResponse { accepted: false }));
+            }
+        }
     }
 
     let payload = match B64.decode(req.payload_b64.as_bytes()) {
@@ -473,9 +489,13 @@ async fn list_traces(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
 ) -> (StatusCode, Json<TraceListResponse>) {
+    let mut authorized_tenant: Option<String> = None;
     if state.auth.enabled {
         match authorize_request(&state, &headers, Action::TracesRead).await {
-            Ok(claims) => audit_event(Action::TracesRead, "allow", Some(&claims.sub), None),
+            Ok(claims) => {
+                audit_event(Action::TracesRead, "allow", Some(&claims.sub), None);
+                authorized_tenant = claims.tenant_id;
+            }
             Err(code) => {
                 audit_event(Action::TracesRead, "deny", None, Some(code.as_u16()));
             return (code, Json(TraceListResponse { items: vec![] }));
@@ -491,6 +511,12 @@ async fn list_traces(
         }
     };
 
+    if state.auth.enabled {
+        if let Some(ref tenant) = authorized_tenant {
+            items.retain(|item| &item.tenant_id == tenant);
+        }
+    }
+
     items.sort_by(|a, b| b.ts_unix_ms.cmp(&a.ts_unix_ms));
     if items.len() > 500 {
         items.truncate(500);
@@ -504,9 +530,13 @@ async fn get_trace(
     headers: HeaderMap,
     Json(req): Json<TraceGetRequest>,
 ) -> impl IntoResponse {
+    let mut authorized_tenant: Option<String> = None;
     if state.auth.enabled {
         match authorize_request(&state, &headers, Action::TracesRead).await {
-            Ok(claims) => audit_event(Action::TracesRead, "allow", Some(&claims.sub), None),
+            Ok(claims) => {
+                audit_event(Action::TracesRead, "allow", Some(&claims.sub), None);
+                authorized_tenant = claims.tenant_id;
+            }
             Err(code) => {
                 audit_event(Action::TracesRead, "deny", None, Some(code.as_u16()));
                 return (code, Json(serde_json::json!({"error":"unauthorized"})));
@@ -514,11 +544,20 @@ async fn get_trace(
         }
     }
 
-    if req.trace_id.is_empty() || req.span_id.is_empty() {
+    if req.tenant_id.is_empty() || req.trace_id.is_empty() || req.span_id.is_empty() {
         return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error":"invalid_input"})));
     }
 
-    let bytes = match load_trace_record_bytes(&state, &req.trace_id, &req.span_id).await {
+    if state.auth.enabled {
+        if let Some(ref auth_tenant) = authorized_tenant {
+            if auth_tenant != &req.tenant_id {
+                audit_event(Action::TracesRead, "tenant_mismatch", None, Some(StatusCode::FORBIDDEN.as_u16()));
+                return (StatusCode::FORBIDDEN, Json(serde_json::json!({"error":"forbidden"})));
+            }
+        }
+    }
+
+    let bytes = match load_trace_record_bytes(&state, &req.tenant_id, &req.trace_id, &req.span_id).await {
         Ok(Some(b)) => b,
         Ok(None) => {
             audit_event(Action::TracesRead, "not_found", None, Some(StatusCode::NOT_FOUND.as_u16()));
@@ -564,14 +603,17 @@ fn traces_dir(data_dir: &Path) -> PathBuf {
     data_dir.join("traces")
 }
 
-fn trace_path(data_dir: &Path, trace_id: &str, span_id: &str) -> PathBuf {
-    traces_dir(data_dir).join(format!("{}_{}.json", sanitize_id(trace_id), sanitize_id(span_id)))
+fn trace_path(data_dir: &Path, tenant_id: &str, trace_id: &str, span_id: &str) -> PathBuf {
+    traces_dir(data_dir)
+        .join(sanitize_id(tenant_id))
+        .join(format!("{}_{}.json", sanitize_id(trace_id), sanitize_id(span_id)))
 }
 
-fn trace_object_name(prefix: &str, trace_id: &str, span_id: &str) -> String {
+fn trace_object_name(prefix: &str, tenant_id: &str, trace_id: &str, span_id: &str) -> String {
     format!(
-        "{}/traces/{}_{}.json",
+        "{}/traces/{}/{}_{}.json",
         sanitize_id(prefix),
+        sanitize_id(tenant_id),
         sanitize_id(trace_id),
         sanitize_id(span_id)
     )
@@ -611,6 +653,7 @@ async fn persist_trace_record(state: &AppState, req: &TraceIngestRequest, payloa
     let ciphertext = cipher.encrypt(Nonce::from_slice(&nonce), payload)?;
 
     let trace = TraceSummary {
+        tenant_id: req.tenant_id.clone(),
         trace_id: req.trace_id.clone(),
         span_id: req.span_id.clone(),
         ts_unix_ms: req.ts_unix_ms,
@@ -627,7 +670,7 @@ async fn persist_trace_record(state: &AppState, req: &TraceIngestRequest, payloa
 
     let bytes = serde_json::to_vec(&rec)?;
 
-    store_trace_record_bytes(state, &req.trace_id, &req.span_id, bytes).await?;
+    store_trace_record_bytes(state, &req.tenant_id, &req.trace_id, &req.span_id, bytes).await?;
     Ok(())
 }
 
@@ -647,28 +690,30 @@ async fn decrypt_payload_from_record(state: &AppState, rec: &TraceRecord) -> any
     Ok(plaintext)
 }
 
-async fn store_trace_record_bytes(state: &AppState, trace_id: &str, span_id: &str, bytes: Vec<u8>) -> anyhow::Result<()> {
+async fn store_trace_record_bytes(state: &AppState, tenant_id: &str, trace_id: &str, span_id: &str, bytes: Vec<u8>) -> anyhow::Result<()> {
     match &state.storage {
         StorageBackend::Fs => {
-            let path = trace_path(&state.data_dir, trace_id, span_id);
+            let path = trace_path(&state.data_dir, tenant_id, trace_id, span_id);
+            let parent = path.parent().ok_or_else(|| anyhow::anyhow!("invalid path"))?;
+            tokio::fs::create_dir_all(parent).await?;
             tokio::fs::write(path, bytes).await?;
             Ok(())
         }
         StorageBackend::Gcs { bucket, prefix } => {
-            let object = trace_object_name(prefix, trace_id, span_id);
+            let object = trace_object_name(prefix, tenant_id, trace_id, span_id);
             gcs_put_object(state, bucket, &object, bytes).await
         }
         StorageBackend::S3 { client, bucket, prefix } => {
-            let key = trace_object_name(prefix, trace_id, span_id);
+            let key = trace_object_name(prefix, tenant_id, trace_id, span_id);
             s3_put_object(client, bucket, &key, bytes).await
         }
     }
 }
 
-async fn load_trace_record_bytes(state: &AppState, trace_id: &str, span_id: &str) -> anyhow::Result<Option<Vec<u8>>> {
+async fn load_trace_record_bytes(state: &AppState, tenant_id: &str, trace_id: &str, span_id: &str) -> anyhow::Result<Option<Vec<u8>>> {
     match &state.storage {
         StorageBackend::Fs => {
-            let path = trace_path(&state.data_dir, trace_id, span_id);
+            let path = trace_path(&state.data_dir, tenant_id, trace_id, span_id);
             match tokio::fs::read(&path).await {
                 Ok(b) => Ok(Some(b)),
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
@@ -676,11 +721,11 @@ async fn load_trace_record_bytes(state: &AppState, trace_id: &str, span_id: &str
             }
         }
         StorageBackend::Gcs { bucket, prefix } => {
-            let object = trace_object_name(prefix, trace_id, span_id);
+            let object = trace_object_name(prefix, tenant_id, trace_id, span_id);
             gcs_get_object(state, bucket, &object).await
         }
         StorageBackend::S3 { client, bucket, prefix } => {
-            let key = trace_object_name(prefix, trace_id, span_id);
+            let key = trace_object_name(prefix, tenant_id, trace_id, span_id);
             s3_get_object(client, bucket, &key).await
         }
     }
@@ -692,36 +737,53 @@ async fn list_trace_summaries(state: &AppState) -> anyhow::Result<Vec<TraceSumma
             let dir = traces_dir(&state.data_dir);
             let mut items: Vec<TraceSummary> = Vec::new();
 
-            let mut rd = match tokio::fs::read_dir(&dir).await {
+            let mut tenant_dirs = match tokio::fs::read_dir(&dir).await {
                 Ok(v) => v,
                 Err(_) => return Ok(items),
             };
 
             loop {
-                let entry = match rd.next_entry().await {
+                let tenant_entry = match tenant_dirs.next_entry().await {
                     Ok(Some(e)) => e,
                     Ok(None) => break,
                     Err(_) => break,
                 };
 
-                if entry.file_type().await.ok().map(|t| t.is_file()) != Some(true) {
+                if tenant_entry.file_type().await.ok().map(|t| t.is_dir()) != Some(true) {
                     continue;
                 }
 
-                let path = entry.path();
-                if path.extension().and_then(|s| s.to_str()) != Some("json") {
-                    continue;
-                }
+                let mut trace_files = match tokio::fs::read_dir(tenant_entry.path()).await {
+                    Ok(v) => v,
+                    Err(_) => continue,
+                };
 
-                let bytes = match tokio::fs::read(&path).await {
-                    Ok(b) => b,
-                    Err(_) => continue,
-                };
-                let rec: TraceRecord = match serde_json::from_slice(&bytes) {
-                    Ok(r) => r,
-                    Err(_) => continue,
-                };
-                items.push(rec.trace);
+                loop {
+                    let entry = match trace_files.next_entry().await {
+                        Ok(Some(e)) => e,
+                        Ok(None) => break,
+                        Err(_) => break,
+                    };
+
+                    if entry.file_type().await.ok().map(|t| t.is_file()) != Some(true) {
+                        continue;
+                    }
+
+                    let path = entry.path();
+                    if path.extension().and_then(|s| s.to_str()) != Some("json") {
+                        continue;
+                    }
+
+                    let bytes = match tokio::fs::read(&path).await {
+                        Ok(b) => b,
+                        Err(_) => continue,
+                    };
+                    let rec: TraceRecord = match serde_json::from_slice(&bytes) {
+                        Ok(r) => r,
+                        Err(_) => continue,
+                    };
+                    items.push(rec.trace);
+                }
             }
 
             Ok(items)
