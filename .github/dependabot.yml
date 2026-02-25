@@ -1,0 +1,54 @@
+version: 2
+updates:
+  # Rust dependencies (Oracle)
+  - package-ecosystem: "cargo"
+    directory: "/services/oracle"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "rust"
+    commit-message:
+      prefix: "chore(oracle)"
+    reviewers:
+      - "AlpenGuard/maintainers"
+    assignees:
+      - "AlpenGuard/maintainers"
+
+  # npm dependencies (Console)
+  - package-ecosystem: "npm"
+    directory: "/apps/console"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "console"
+    commit-message:
+      prefix: "chore(console)"
+    reviewers:
+      - "AlpenGuard/maintainers"
+    assignees:
+      - "AlpenGuard/maintainers"
+    ignore:
+      # Ignore major version updates for React (manual review preferred)
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(ci)"

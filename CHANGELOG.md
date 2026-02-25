@@ -5,6 +5,43 @@ All notable changes to AlpenGuard will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-02-25
+
+### Added
+- **Multi-Tenancy (Phase 1)**:
+  - `tenant_id` field added to all trace structures (Claims, TraceIngestRequest, TraceSummary, TraceGetRequest)
+  - Tenant-scoped authorization: validates request `tenant_id` matches OIDC claim `tenant_id`
+  - Tenant-isolated storage paths: `{storage_root}/traces/{tenant_id}/` for FS/GCS/S3
+  - Tenant filtering in list endpoint (only shows authorized tenant's traces)
+  - Audit logging for tenant mismatch attempts
+- **CI/CD Pipeline (Phase 2)**:
+  - GitHub Actions workflow for Oracle tests (cargo test, clippy, fmt, security audit)
+  - GitHub Actions workflow for Console build (npm build, type-check)
+  - Dependabot configuration for automated dependency updates (Cargo, npm, GitHub Actions)
+  - Weekly dependency update schedule with auto-labeling
+- **Console Updates**:
+  - Tenant ID input field with localStorage persistence
+  - Updated TraceSummary type to include `tenant_id`
+  - Tenant ID included in trace detail display
+  - Multi-tenancy documentation in UI
+
+### Changed
+- **BREAKING**: All trace API endpoints now require `tenant_id` field
+- Console API calls updated to include `tenant_id` in requests
+- `.env.example` updated with multi-tenancy documentation
+- Storage backend functions updated to accept `tenant_id` parameter
+
+### Removed
+- **VS Code Extension**: Removed entire extension codebase and references
+  - Deleted `apps/vscode-extension/` directory (7 files, 1,042 lines)
+  - Removed extension references from README.md, CHANGELOG.md, .gitignore
+  - Focus shifted to web console only for trace exploration
+
+### Security
+- JWKS URL validation: enforces HTTPS to prevent SSRF attacks
+- Tenant isolation prevents cross-tenant data leaks
+- Storage path sanitization prevents directory traversal
+
 ## [0.1.0] - 2026-02-25
 
 ### Added
@@ -52,8 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Multi-tenancy support with per-tenant encryption keys
-- KMS envelope encryption (move from env-provided key to cloud KMS)
+- KMS envelope encryption with per-tenant DEKs (Phase 3)
 - Token-2022 micropayment integration (x402 protocol)
 - Red-teaming engine with behavioral analysis
 - Trace export bundles with on-chain attestation

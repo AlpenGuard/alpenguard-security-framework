@@ -1,0 +1,90 @@
+name: Oracle Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/oracle/**'
+      - '.github/workflows/oracle-tests.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'services/oracle/**'
+      - '.github/workflows/oracle-tests.yml'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test Oracle (Rust)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache Cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-index-
+
+      - name: Cache target directory
+        uses: actions/cache@v4
+        with:
+          path: services/oracle/target
+          key: ${{ runner.os }}-cargo-target-${{ hashFiles('services/oracle/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-target-
+
+      - name: Check formatting
+        run: cargo fmt --check
+        working-directory: services/oracle
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+        working-directory: services/oracle
+
+      - name: Build Oracle
+        run: cargo build --verbose
+        working-directory: services/oracle
+
+      - name: Run tests
+        run: cargo test --verbose
+        working-directory: services/oracle
+        env:
+          RUST_BACKTRACE: 1
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Run security audit
+        run: cargo audit
+        working-directory: services/oracle

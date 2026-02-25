@@ -236,6 +236,7 @@ function TraceExplorer(props: { oracleUrl: string }) {
 
   const [rememberToken, setRememberToken] = useState<boolean>(localStorage.getItem('alpenguard.rememberToken') === '1');
   const [token, setToken] = useState<string>(localStorage.getItem('alpenguard.bearer') ?? '');
+  const [tenantId, setTenantId] = useState<string>(localStorage.getItem('alpenguard.tenantId') ?? '');
   const [listStatus, setListStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
   const [items, setItems] = useState<TraceSummary[]>([]);
   const [selected, setSelected] = useState<TraceSummary | null>(null);
@@ -301,7 +302,7 @@ function TraceExplorer(props: { oracleUrl: string }) {
           'content-type': 'application/json',
           ...(trimmedToken ? { Authorization: `Bearer ${trimmedToken}` } : {}),
         },
-        body: JSON.stringify({ trace_id: t.trace_id, span_id: t.span_id }),
+        body: JSON.stringify({ tenant_id: t.tenant_id, trace_id: t.trace_id, span_id: t.span_id }),
       });
 
       if (!res.ok) {
@@ -395,6 +396,23 @@ function TraceExplorer(props: { oracleUrl: string }) {
             Remember token on this device
           </label>
 
+          <div className="ag-field-label" style={{ marginTop: 16 }}>Tenant ID (multi-tenancy)</div>
+          <input
+            className="ag-input"
+            value={tenantId}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              setTenantId(e.target.value);
+            }}
+            onBlur={() => {
+              localStorage.setItem('alpenguard.tenantId', tenantId);
+            }}
+            placeholder="e.g., acme-corp"
+            spellCheck={false}
+          />
+          <div className="ag-body" style={{ marginTop: 6, fontSize: 12 }}>
+            Required for multi-tenant deployments. Leave empty for single-tenant dev mode.
+          </div>
+
           <div className="ag-row" style={{ marginTop: 12 }}>
             <button className="ag-btn" onClick={listTraces} disabled={listStatus === 'loading'}>
               {listStatus === 'loading' ? 'Loading…' : 'List traces'}
@@ -428,7 +446,10 @@ function TraceExplorer(props: { oracleUrl: string }) {
                       <div style={{ fontSize: 12, color: 'var(--muted2)' }}>{new Date(t.ts_unix_ms).toLocaleString()}</div>
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                      agent: {t.agent_id} · trace: {t.trace_id} · span: {t.span_id}
+                      tenant: {t.tenant_id} · agent: {t.agent_id}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 2 }}>
+                      trace: {t.trace_id} · span: {t.span_id}
                     </div>
                   </button>
                 );
@@ -471,6 +492,7 @@ function TraceExplorer(props: { oracleUrl: string }) {
 }
 
 type TraceSummary = {
+  tenant_id: string;
   trace_id: string;
   span_id: string;
   ts_unix_ms: number;
