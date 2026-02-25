@@ -1,4 +1,5 @@
 node_modules/
+**/node_modules/
 
 dist/
 build/
@@ -37,6 +38,11 @@ yarn-error.log*
 pnpm-debug.log*
 
 .vite/
+
+# VS Code extension artifacts
+*.vsix
+!apps/vscode-extension/dist/
+!apps/vscode-extension/dist/**
 
 .vscode/
 .idea/

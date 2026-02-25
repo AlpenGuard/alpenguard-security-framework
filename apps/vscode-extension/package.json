@@ -1,0 +1,72 @@
+{
+  "name": "alpenguard",
+  "displayName": "AlpenGuard",
+  "description": "Compliance + trace explorer for autonomous agent security (AlpenGuard).",
+  "version": "0.1.0",
+  "publisher": "AlpenGuard",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AlpenGuard/alpenguard-security-framework.git"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:alpenguard.openTraceExplorer",
+    "onCommand:alpenguard.setBearerToken",
+    "onCommand:alpenguard.clearBearerToken",
+    "onCommand:alpenguard.pingOracle"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "alpenguard.openTraceExplorer",
+        "title": "AlpenGuard: Open Trace Explorer"
+      },
+      {
+        "command": "alpenguard.setBearerToken",
+        "title": "AlpenGuard: Set Bearer Token"
+      },
+      {
+        "command": "alpenguard.clearBearerToken",
+        "title": "AlpenGuard: Clear Bearer Token"
+      },
+      {
+        "command": "alpenguard.pingOracle",
+        "title": "AlpenGuard: Ping Oracle"
+      }
+    ],
+    "configuration": {
+      "title": "AlpenGuard",
+      "properties": {
+        "alpenguard.oracleUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8787",
+          "description": "Compliance Oracle base URL (e.g. https://oracle.example.com)"
+        },
+        "alpenguard.traceExplorer.maxItems": {
+          "type": "number",
+          "default": 50,
+          "minimum": 1,
+          "maximum": 500,
+          "description": "Maximum traces to show in the Trace Explorer"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -w -p tsconfig.json",
+    "package": "npx @vscode/vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.5.4"
+  }
+}

@@ -1,0 +1,16 @@
+**/src/**
+**/*.map
+**/tsconfig.json
+**/.vscodeignore
+**/.gitignore
+node_modules/**
+
+# Exclude monorepo parents (vsce may attempt to include these)
+../**
+../../**
+
+# Exclude local build artifacts
+dist/**/*.map
+
+# If you add tests later
+**/test/**
