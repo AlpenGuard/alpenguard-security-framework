@@ -12,10 +12,16 @@ on:
       - 'apps/console/**'
       - '.github/workflows/console-build.yml'
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build Console (React/Vite)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     
     steps:
       - name: Checkout code
