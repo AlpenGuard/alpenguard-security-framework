@@ -26,10 +26,13 @@ use aws_credential_types::Credentials;
 use aws_sdk_s3::primitives::ByteStream;
 use aws_types::region::Region;
 
+mod kms;
+
 #[derive(Clone)]
 struct AppState {
     kms_key_present: bool,
     aes_key_32: Option<[u8; 32]>,
+    kms_manager: Option<Arc<kms::KmsManager>>,
     auth: AuthConfig,
     http: Client,
     data_dir: PathBuf,
@@ -241,6 +244,29 @@ async fn main() -> anyhow::Result<()> {
         warn!("ALPENGUARD_KMS_KEY_B64 not set; trace ingestion will be rejected to avoid plaintext storage.");
     }
 
+    // Initialize KMS manager for envelope encryption (Phase 3)
+    let kms_key_name = std::env::var("ALPENGUARD_KMS_KEY_NAME").ok();
+    let kms_sa_json = std::env::var("ALPENGUARD_KMS_SA_JSON").ok();
+    let kms_cache_ttl_secs: u64 = std::env::var("ALPENGUARD_KMS_CACHE_TTL_SECS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(3600);
+
+    let kms_manager = if kms_key_name.is_some() && kms_sa_json.is_some() {
+        match kms::KmsManager::new(kms_key_name.clone(), kms_sa_json, kms_cache_ttl_secs).await {
+            Ok(mgr) => {
+                info!("KMS envelope encryption enabled");
+                Some(Arc::new(mgr))
+            }
+            Err(e) => {
+                warn!(error = %e, "Failed to initialize KMS manager; falling back to env key");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     let auth = AuthConfig {
         enabled: std::env::var("ALPENGUARD_OIDC_ENABLED").ok().as_deref() == Some("1"),
         issuer: std::env::var("ALPENGUARD_OIDC_ISSUER").unwrap_or_default(),
@@ -313,6 +339,7 @@ async fn main() -> anyhow::Result<()> {
     let state = Arc::new(AppState {
         kms_key_present,
         aes_key_32,
+        kms_manager,
         auth,
         http: Client::builder()
             .timeout(Duration::from_secs(http_timeout_secs))

@@ -2,6 +2,9 @@
 seeds = false
 skip-lint = false
 
+[workspace]
+members = ["programs/alpenguard", "programs/micropayments"]
+
 [programs.localnet]
 alpenguard = "ALPG11111111111111111111111111111111111111"
 

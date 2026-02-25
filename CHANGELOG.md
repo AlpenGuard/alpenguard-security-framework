@@ -5,6 +5,44 @@ All notable changes to AlpenGuard will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-02-25
+
+### Added
+- **KMS Envelope Encryption (Phase 3)**:
+  - GCP Cloud KMS integration for enterprise-grade key management
+  - Per-tenant Data Encryption Keys (DEKs) wrapped by KMS master key
+  - DEK caching with configurable TTL (default: 1 hour)
+  - Automatic key rotation support via cache invalidation
+  - Master key never leaves KMS (zero-knowledge architecture)
+  - Fallback to env-provided key for legacy deployments
+  - KMS module (`services/oracle/src/kms.rs`) with envelope encryption logic
+- **Token-2022 Micropayments (Phase 4)**:
+  - New Solana program: `alpenguard-micropayments` with Token-2022 support
+  - x402 HTTP 402 Payment Required protocol implementation
+  - Payment session creation and execution on-chain
+  - USDC (Token-2022) transfers with CpiGuard and ImmutableOwner extensions
+  - Automatic refund mechanism for service failures
+  - Configurable pricing per trace (lamports)
+  - Event emissions for payment tracking (PaymentExecuted, PaymentRefunded)
+  - Authority-controlled payment config updates
+- **Configuration**:
+  - KMS environment variables: `ALPENGUARD_KMS_KEY_NAME`, `ALPENGUARD_KMS_SA_JSON`, `ALPENGUARD_KMS_CACHE_TTL_SECS`
+  - Micropayments environment variables: `ALPENGUARD_PAYMENT_ENABLED`, `ALPENGUARD_PAYMENT_PROGRAM_ID`, etc.
+  - Updated `.env.example` with comprehensive KMS and micropayments documentation
+
+### Changed
+- Oracle `AppState` now includes optional `kms_manager` for envelope encryption
+- Anchor workspace updated to include `programs/micropayments`
+- Cargo dependencies: added `google-cloudkms1`, `hyper`, `hyper-rustls`, `yup-oauth2` for KMS
+- Anchor dependencies: added `spl-token-2022` for micropayments program
+
+### Security
+- KMS envelope encryption provides enterprise-grade key management
+- Master key never exposed (remains in KMS)
+- Per-tenant DEK isolation prevents cross-tenant key reuse
+- Token-2022 program uses CpiGuard to prevent unauthorized CPI calls
+- Payment verification on-chain before trace delivery
+
 ## [0.2.0] - 2026-02-25
 
 ### Added

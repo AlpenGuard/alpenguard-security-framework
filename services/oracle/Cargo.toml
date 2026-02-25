@@ -28,7 +28,11 @@ aws-smithy-types = "1.1.9"
 aws-credential-types = "1.1.9"
 aws-types = "1.1.9"
 
-# Encryption-at-rest placeholder (env-provided key)
+# Encryption-at-rest: KMS envelope encryption (Phase 3)
 aes-gcm.workspace = true
 base64.workspace = true
 sha2.workspace = true
+google-cloudkms1 = "5.0.5"
+hyper = "0.14"
+hyper-rustls = "0.24"
+yup-oauth2 = "8.3"
