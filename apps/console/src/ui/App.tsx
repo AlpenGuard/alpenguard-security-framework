@@ -234,6 +234,7 @@ function TraceExplorer(props: { oracleUrl: string }) {
   const [lastHttp, setLastHttp] = useState<number | null>(null);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
 
+  const [rememberToken, setRememberToken] = useState<boolean>(localStorage.getItem('alpenguard.rememberToken') === '1');
   const [token, setToken] = useState<string>(localStorage.getItem('alpenguard.bearer') ?? '');
   const [listStatus, setListStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
   const [items, setItems] = useState<TraceSummary[]>([]);
@@ -243,6 +244,10 @@ function TraceExplorer(props: { oracleUrl: string }) {
   const [getStatus, setGetStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
 
   const trimmedToken = token.trim();
+
+  if (!rememberToken && token) {
+    localStorage.removeItem('alpenguard.bearer');
+  }
 
   async function ping() {
     setStatus('loading');
@@ -364,11 +369,31 @@ function TraceExplorer(props: { oracleUrl: string }) {
               setToken(e.target.value);
             }}
             onBlur={() => {
-              localStorage.setItem('alpenguard.bearer', token);
+              if (rememberToken) {
+                localStorage.setItem('alpenguard.bearer', token);
+              }
             }}
             placeholder="Paste access token here"
             spellCheck={false}
           />
+
+          <label className="ag-body" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+            <input
+              type="checkbox"
+              checked={rememberToken}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                const next = e.target.checked;
+                setRememberToken(next);
+                localStorage.setItem('alpenguard.rememberToken', next ? '1' : '0');
+                if (!next) {
+                  localStorage.removeItem('alpenguard.bearer');
+                } else if (token) {
+                  localStorage.setItem('alpenguard.bearer', token);
+                }
+              }}
+            />
+            Remember token on this device
+          </label>
 
           <div className="ag-row" style={{ marginTop: 12 }}>
             <button className="ag-btn" onClick={listTraces} disabled={listStatus === 'loading'}>

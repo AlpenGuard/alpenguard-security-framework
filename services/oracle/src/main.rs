@@ -1,5 +1,5 @@
 use axum::{
-    extract::State,
+    extract::{DefaultBodyLimit, State},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{get, post},
@@ -34,6 +34,7 @@ struct AppState {
     http: Client,
     data_dir: PathBuf,
     storage: StorageBackend,
+    max_trace_payload_bytes: usize,
 }
 
 #[derive(Clone)]
@@ -189,6 +190,26 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 
+    let max_body_bytes: usize = std::env::var("ALPENGUARD_MAX_BODY_BYTES")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(262_144);
+
+    let max_trace_payload_bytes: usize = std::env::var("ALPENGUARD_MAX_TRACE_PAYLOAD_BYTES")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(131_072);
+
+    let http_timeout_secs: u64 = std::env::var("ALPENGUARD_HTTP_TIMEOUT_SECS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(10);
+
+    let http_connect_timeout_secs: u64 = std::env::var("ALPENGUARD_HTTP_CONNECT_TIMEOUT_SECS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(5);
+
     let aes_key_32: Option<[u8; 32]> = match std::env::var("ALPENGUARD_KMS_KEY_B64") {
         Ok(key_b64) => {
             let key_bytes = B64.decode(key_b64.as_bytes())?;
@@ -274,9 +295,13 @@ async fn main() -> anyhow::Result<()> {
         kms_key_present,
         aes_key_32,
         auth,
-        http: Client::new(),
+        http: Client::builder()
+            .timeout(Duration::from_secs(http_timeout_secs))
+            .connect_timeout(Duration::from_secs(http_connect_timeout_secs))
+            .build()?,
         data_dir,
         storage,
+        max_trace_payload_bytes,
     });
 
     let rate_limit_per_second: u32 = std::env::var("ALPENGUARD_RATELIMIT_RPS")
@@ -323,6 +348,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/v1/traces:ingest", post(ingest_trace))
         .route("/v1/traces:list", get(list_traces))
         .route("/v1/traces:get", post(get_trace))
+        .layer(DefaultBodyLimit::max(max_body_bytes))
         .layer(GovernorLayer { config: Arc::new(governor_conf) })
         .layer(cors)
         .layer(SetResponseHeaderLayer::if_not_present(
@@ -398,6 +424,10 @@ async fn ingest_trace(
         Ok(v) => v,
         Err(_) => return (StatusCode::BAD_REQUEST, Json(TraceIngestResponse { accepted: false })),
     };
+
+    if payload.len() > state.max_trace_payload_bytes {
+        return (StatusCode::PAYLOAD_TOO_LARGE, Json(TraceIngestResponse { accepted: false }));
+    }
 
     let expected_hash = match B64.decode(req.payload_sha256_b64.as_bytes()) {
         Ok(v) => v,
@@ -501,6 +531,10 @@ async fn get_trace(
             return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":"decrypt_failed"})));
         }
     };
+
+    if payload.len() > state.max_trace_payload_bytes {
+        return (StatusCode::PAYLOAD_TOO_LARGE, Json(serde_json::json!({"error":"payload_too_large"})));
+    }
 
     let resp = TraceGetResponse {
         trace: rec.trace,
