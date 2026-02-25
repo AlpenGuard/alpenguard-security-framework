@@ -249,6 +249,12 @@ async fn main() -> anyhow::Result<()> {
                 "OIDC enabled but missing env vars. Require ALPENGUARD_OIDC_ISSUER, ALPENGUARD_OIDC_AUDIENCE, ALPENGUARD_OIDC_JWKS_URL"
             );
         }
+        if !auth.jwks_url.starts_with("https://") {
+            anyhow::bail!(
+                "ALPENGUARD_OIDC_JWKS_URL must use HTTPS to prevent SSRF attacks. Got: {}",
+                auth.jwks_url
+            );
+        }
         info!("OIDC auth enabled for protected endpoints");
     } else {
         let allow_insecure = std::env::var("ALPENGUARD_ALLOW_INSECURE").ok().as_deref() == Some("1");
