@@ -106,6 +106,14 @@ struct Claims {
     permissions: Option<Vec<String>>,
 }
 
+fn aud_matches_config(aud: &serde_json::Value, expected: &str) -> bool {
+    match aud {
+        serde_json::Value::String(s) => s == expected,
+        serde_json::Value::Array(items) => items.iter().any(|v| v.as_str() == Some(expected)),
+        _ => false,
+    }
+}
+
 #[derive(Clone, Debug, Deserialize)]
 struct Jwks {
     keys: Vec<Jwk>,
@@ -981,6 +989,10 @@ async fn authorize_request(state: &AppState, headers: &HeaderMap, action: Action
     validation.set_audience(&[state.auth.audience.as_str()]);
 
     let data = decode::<Claims>(token, &key, &validation).map_err(|_| StatusCode::UNAUTHORIZED)?;
+
+    if !aud_matches_config(&data.claims.aud, state.auth.audience.as_str()) {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
 
     if !claims_has_scope(&data.claims, action.required_scope()) {
         return Err(StatusCode::FORBIDDEN);
